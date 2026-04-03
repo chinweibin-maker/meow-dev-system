@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>喵星人开发者实验室 Pro</title>
+    <style>
+        :root { --cat-color: #ff9f43; --bg: #1a1a2e; }
+        body { background: var(--bg); color: white; font-family: 'Courier New', Courier, monospace; margin: 0; overflow: hidden; height: 100vh; cursor: crosshair; }
+        
+        /* 1. 守护猫咪 (Stalker) */
+        #cat-stalker {
+            position: fixed; bottom: 20px; right: 20px; width: 100px; height: 100px;
+            z-index: 1000; transition: all 0.1s ease; pointer-events: none;
+        }
+        .cat-head { font-size: 50px; position: absolute; top: 0; left: 0; }
+
+        /* 2. 交互主界面 */
+        .main-ui {
+            display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;
+            text-align: center; padding: 20px;
+        }
+        input {
+            padding: 15px; width: 300px; border-radius: 10px; border: 2px solid var(--cat-color);
+            background: #16213e; color: white; font-size: 1.1rem; margin-top: 20px; outline: none;
+        }
+
+        /* 3. 防盗遮罩 (Guardian) */
+        #guardian-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.9);
+            display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 9999;
+        }
+        .scary-cat { font-size: 150px; animation: shake 0.2s infinite; }
+
+        /* 4. 喂食进度条 */
+        .status-bar { width: 200px; height: 10px; background: #333; border-radius: 5px; margin-top: 10px; overflow: hidden; }
+        #energy-fill { width: 50%; height: 100%; background: var(--cat-color); transition: width 0.5s; }
+
+        @keyframes shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-2px, -1px); } 100% { transform: translate(1px, 1px); } }
+        
+        /* 爪印特效 */
+        .paw { position: absolute; width: 20px; height: 20px; pointer-events: none; opacity: 0.6; animation: fade 1s forwards; }
+        @keyframes fade { to { opacity: 0; transform: scale(2); } }
+    </style>
+</head>
+<body oncontextmenu="showGuardian(); return false;">
+
+    <div id="guardian-overlay">
+        <div class="scary-cat">🙀</div>
+        <h2 style="color:red;">非礼勿视！禁止查看源代码！</h2>
+        <button onclick="hideGuardian()" style="padding:10px 20px; cursor:pointer;">我错了，猫主子</button>
+    </div>
+
+    <div class="main-ui">
+        <h1>🐱 MEOW INTERACTIVE SYSTEM</h1>
+        <p>这是一个会监视你的网页。试试在下方打字，或尝试右键点击。</p>
+        
+        <div class="status-bar">
+            <div id="energy-fill"></div>
+        </div>
+        <small id="status-text">猫咪体力：一般 (需投喂代码)</small>
+
+        <input type="text" id="meow-input" placeholder="在这里打字会有喵叫声..." oninput="handleTyping()">
+        
+        <div style="margin-top: 40px; color: #666; font-size: 0.8rem;">
+            提示：按下 F12 会激怒守护猫
+        </div>
+    </div>
+
+    <div id="cat-stalker">
+        <div class="cat-head" id="cat-emoji">🐱</div>
+    </div>
+
+<script>
+    // --- 1. 声音引擎 (Web Audio API) ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function synthMeow(pitch = 1) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(400 * pitch, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100 * pitch, audioCtx.currentTime + 0.5);
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+    }
+
+    // --- 2. 键盘交互 (音乐喵) ---
+    function handleTyping() {
+        const pitch = 0.8 + Math.random() * 0.5;
+        synthMeow(pitch);
+        // 增加体力
+        let energy = document.getElementById('energy-fill');
+        let currentWidth = parseFloat(energy.style.width) || 50;
+        energy.style.width = Math.min(currentWidth + 1, 100) + "%";
+    }
+
+    // --- 3. 鼠标追踪 (Stalker) ---
+    document.addEventListener('mousemove', (e) => {
+        const stalker = document.getElementById('cat-stalker');
+        const catEmoji = document.getElementById('cat-emoji');
+        
+        // 移动跟随
+        stalker.style.transform = `translate(${e.clientX / 50}px, ${e.clientY / 50}px)`;
+        
+        // 眼神转动模拟
+        if(e.clientX < window.innerWidth / 2) catEmoji.innerText = "👈🐱";
+        else catEmoji.innerText = "🐱👉";
+
+        // 随机留下爪印
+        if(Math.random() > 0.95) createPaw(e.clientX, e.clientY);
+    });
+
+    function createPaw(x, y) {
+        const paw = document.createElement('div');
+        paw.className = 'paw';
+        paw.innerText = '🐾';
+        paw.style.left = x + 'px';
+        paw.style.top = y + 'px';
+        document.body.appendChild(paw);
+        setTimeout(() => paw.remove(), 1000);
+    }
+
+    // --- 4. 守护模式 (Guardian) ---
+    function showGuardian() {
+        document.getElementById('guardian-overlay').style.display = 'flex';
+        synthMeow(0.2); // 发出低沉的怒吼
+    }
+    function hideGuardian() {
+        document.getElementById('guardian-overlay').style.display = 'none';
+    }
+
+    // 监听 F12
+    window.onkeydown = (e) => {
+        if(e.keyCode == 123) { showGuardian(); return false; }
+    }
+
+    // --- 5. 控制台彩蛋 (Console) ---
+    console.log("%c   /\\_/\\  \n  ( o.o ) \n   > ^ <  ", "color: #ff9f43; font-weight: bold; font-size: 20px;");
+    console.log("%c恭喜你发现了隐藏调试终端！你是一个真正的开发者喵！", "color: #6c5ce7; font-size: 14px;");
+
+</script>
+</body>
+</html>
